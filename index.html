@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>html{color-scheme:dark}body{margin:0;font-size:14px}[hidden]{display:none!important}img{max-width:100%}</style>
+<title>NDEKE FLY</title>
+<style>
+  /* Layout: a single centred playfield, sized to the screen height, with a slim title row above it. Night-only look. */
+  :root {
+    --bg: #07090f;
+    --fg: #e4e8f7;
+    --muted: #8d93b5;
+    --accent: #a99bff;
+    --font-display: "Anton", "Trebuchet MS", system-ui, sans-serif;
+    --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    color-scheme: dark;
+  }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-body);
+    padding-block: 12px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  header {
+    width: min(100%, 420px);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  h1 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 1.9rem;
+    letter-spacing: 0.06em;
+    color: var(--accent);
+    text-wrap: balance;
+  }
+  .hint { margin: 0; font-size: 0.85rem; color: var(--muted); }
+  kbd {
+    font-family: var(--font-body);
+    font-size: 0.78rem;
+    padding: 1px 6px;
+    border: 1px solid var(--muted);
+    border-radius: 4px;
+  }
+  .stage {
+    width: min(100%, calc((100svh - 110px) * 0.6), 420px);
+    min-width: 0;
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 3 / 5;
+    max-width: 100%;
+    border-radius: 10px;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    outline: none;
+    cursor: pointer;
+  }
+  header { align-items: center; }
+  .hint { flex-basis: 100%; order: 3; }
+  .btn {
+    font: 600 0.85rem var(--font-body);
+    color: var(--fg);
+    background: transparent;
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    padding: 6px 12px;
+    cursor: pointer;
+  }
+  .btn:hover { background: rgba(169, 155, 255, 0.15); }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn.primary { margin-top: 14px; background: var(--accent); color: #0b0a18; }
+  .stage { position: relative; }
+  .about {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(5, 6, 12, 0.84);
+    border-radius: 10px;
+  }
+  .about .card {
+    width: 100%;
+    max-width: 320px;
+    max-height: 100%;
+    overflow: auto;
+    background: #14122a;
+    border: 1px solid #4a4290;
+    border-radius: 14px;
+    padding: 20px 18px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    text-align: center;
+  }
+  .about img {
+    width: min(200px, 62%);
+    height: auto;
+    aspect-ratio: 768 / 1024;
+    border-radius: 10px;
+    object-fit: cover;
+    border: 2px solid var(--accent);
+  }
+  .about .role { margin: 8px 0 0; font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+  .about h2 { margin: 0; font-weight: 400; font-family: var(--font-display); font-size: 1.5rem; line-height: 1.25; letter-spacing: 0.05em; color: var(--accent); text-wrap: balance; }
+  .about .name { margin: 0; font-weight: 600; font-size: 1rem; color: var(--fg); }
+  .about .meta { margin: 0; font-size: 0.9rem; color: var(--muted); }
+  .about .credit { margin: 10px 0 0; font-size: 0.75rem; color: var(--muted); }
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;600&display=swap">
+
+</head>
+<body>
+<header>
+  <h1>NDEKE FLY</h1>
+  <button class="btn" id="aboutBtn" type="button">À propos</button>
+  <p class="hint">Touche l'écran, clique ou appuie sur <kbd>Espace</kbd></p>
+</header>
+<div class="stage">
+  <canvas id="game" width="720" height="1200" tabindex="0" aria-label="Jeu de nuit : touche pour battre des ailes et passe entre les rochers de la grotte"></canvas>
+  <div class="about" id="about" role="dialog" aria-modal="true" aria-labelledby="aboutTitle" hidden>
+    <div class="card">
+      <img src="photo-bw.jpg" alt="Photo du créateur" width="200" height="267">
+      <p class="role">Créateur de NDEKE FLY</p>
+      <h2 id="aboutTitle">MAYEMBA NGOMA Philippe</h2>
+      <p class="meta">Alias « smoke »</p>
+      <p class="meta">Étudiant en L1 Math-Info à l'UPN</p>      <button class="btn primary" id="aboutClose" type="button">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var canvas = document.getElementById('game');
+  var ctx = canvas.getContext('2d');
+  ctx.scale(2, 2);
+
+  var W = 360, H = 600, GROUND = 80, FLOOR = H - GROUND;
+  var GRAVITY = 1000, FLAP = -350, SPEED = 125;
+  var PW = 68, GAP = 160, SPACING = 205, BIRD_X = 96, BIRD_R = 13;
+
+  var C = {
+    skyTop: '#05060d', skyMid: '#0d0f24', skyBottom: '#1f1a45',
+    hills: '#120f2b', hillsFar: '#0e0c22',
+    cloud: 'rgba(130,120,210,0.10)',
+    rock: '#2a2548', rockShade: '#1a1633', rockEdge: 'rgba(150,135,255,0.75)', rockStrata: 'rgba(170,155,255,0.18)',
+    groundTop: '#2d2850', groundDirt: '#13111f', groundStripe: '#1d1a33',
+    body: '#2c2646', wing: '#3b3260', wingFar: '#231d3d', wingEdge: '#8f82ff', eye: '#b7f4ff', glow: '#7a6cff',
+    text: '#f1f3ff', textStroke: '#04050a'
+  };
+
+  var state = 'ready';
+  var paused = false;
+  var bird, pipes, clouds, stars, score, best = 0;
+  var groundX = 0, hillX = 0, t = 0, diedAt = 0, newBest = false;
+
+  try { best = parseInt(localStorage.getItem('piaf-best') || '0', 10) || 0; } catch (e) {}
+
+  stars = [];
+  for (var s = 0; s < 55; s++) stars.push({ x: Math.random() * W, y: Math.random() * (FLOOR - 160), r: 0.5 + Math.random() * 1.1, ph: Math.random() * 6.28 });
+
+  function reset() {
+    bird = { y: H / 2 - 20, vy: 0, rot: 0 };
+    pipes = [];
+    score = 0;
+    newBest = false;
+    if (!clouds) {
+      clouds = [];
+      for (var i = 0; i < 4; i++) clouds.push({ x: Math.random() * W, y: 60 + Math.random() * 240, s: 0.8 + Math.random() * 1.0 });
+    }
+  }
+  reset();
+
+  function spawnPipe(x) {
+    var min = 100, max = FLOOR - 100 - GAP;
+    pipes.push({ x: x, top: min + Math.random() * (max - min), scored: false });
+  }
+
+  function flap() {
+    if (state === 'ready') {
+      state = 'play';
+      spawnPipe(W + 60);
+      bird.vy = FLAP;
+    } else if (state === 'play') {
+      bird.vy = FLAP;
+    } else if (state === 'over' && performance.now() - diedAt > 600) {
+      reset();
+      state = 'ready';
+    }
+  }
+
+  function die() {
+    if (state !== 'play') return;
+    state = 'over';
+    diedAt = performance.now();
+    if (score > best) {
+      best = score;
+      newBest = true;
+      try { localStorage.setItem('piaf-best', String(best)); } catch (e) {}
+    }
+  }
+
+  function update(dt) {
+    if (paused) return;
+    t += dt;
+    for (var i = 0; i < clouds.length; i++) {
+      var c = clouds[i];
+      c.x -= 10 * c.s * dt;
+      if (c.x < -120) { c.x = W + 60; c.y = 60 + Math.random() * 240; }
+    }
+    if (state !== 'over') {
+      groundX = (groundX + SPEED * dt) % 24;
+      hillX += SPEED * 0.18 * dt;
+    }
+
+    if (state === 'ready') {
+      bird.y = H / 2 - 20 + Math.sin(t * 5) * 8;
+      bird.rot = 0;
+      return;
+    }
+
+    bird.vy += GRAVITY * dt;
+    bird.y += bird.vy * dt;
+    bird.rot = Math.max(-0.45, Math.min(1.3, bird.vy / 450));
+
+    if (bird.y < BIRD_R) { bird.y = BIRD_R; if (bird.vy < 0) bird.vy = 0; }
+
+    if (bird.y + BIRD_R >= FLOOR) {
+      bird.y = FLOOR - BIRD_R;
+      die();
+      bird.vy = 0;
+      bird.rot = 1.3;
+      return;
+    }
+
+    if (state === 'over') return;
+
+    var r = BIRD_R - 3;
+    for (var j = 0; j < pipes.length; j++) {
+      var p = pipes[j];
+      p.x -= SPEED * dt;
+      if (!p.scored && p.x + PW < BIRD_X - BIRD_R) { p.scored = true; score++; }
+      var dx = Math.abs(BIRD_X - (p.x + PW / 2));
+      if (dx < PW / 2 + BIRD_R) {
+        var yc = Math.min(Math.max(bird.y, 0), p.top);
+        var hwTop = PW * (0.2 + 0.8 * (1 - yc / p.top)) / 2;
+        if (bird.y - r < p.top && dx < hwTop + r) die();
+        var bY = p.top + GAP;
+        var yb = Math.max(Math.min(bird.y, FLOOR), bY);
+        var hwBot = PW * (0.2 + 0.8 * ((yb - bY) / (FLOOR - bY))) / 2;
+        if (bird.y + r > bY && dx < hwBot + r) die();
+      }
+    }
+    while (pipes.length && pipes[0].x < -PW - 10) pipes.shift();
+    var last = pipes[pipes.length - 1];
+    if (last && last.x < W - SPACING + 60) spawnPipe(last.x + SPACING);
+  }
+
+  function drawSky() {
+    var g = ctx.createLinearGradient(0, 0, 0, FLOOR);
+    g.addColorStop(0, C.skyTop); g.addColorStop(0.55, C.skyMid); g.addColorStop(1, C.skyBottom);
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+    for (var i = 0; i < stars.length; i++) {
+      var st = stars[i];
+      ctx.fillStyle = 'rgba(225,230,255,' + (0.35 + 0.35 * Math.sin(t * 1.6 + st.ph)).toFixed(2) + ')';
+      ctx.beginPath(); ctx.arc(st.x, st.y, st.r, 0, 6.283); ctx.fill();
+    }
+
+    var mg = ctx.createRadialGradient(284, 112, 10, 284, 112, 90);
+    mg.addColorStop(0, 'rgba(190,200,255,0.35)'); mg.addColorStop(1, 'rgba(190,200,255,0)');
+    ctx.fillStyle = mg; ctx.beginPath(); ctx.arc(284, 112, 90, 0, 6.283); ctx.fill();
+    ctx.fillStyle = '#dfe5ff'; ctx.beginPath(); ctx.arc(284, 112, 26, 0, 6.283); ctx.fill();
+    ctx.fillStyle = 'rgba(150,160,210,0.45)';
+    ctx.beginPath(); ctx.arc(275, 106, 5, 0, 6.283); ctx.arc(292, 120, 4, 0, 6.283); ctx.arc(288, 102, 3, 0, 6.283); ctx.fill();
+
+    for (var k = 0; k < clouds.length; k++) {
+      var c = clouds[k];
+      ctx.fillStyle = C.cloud;
+      ctx.beginPath();
+      ctx.ellipse(c.x, c.y, 60 * c.s, 12 * c.s, 0, 0, 6.283);
+      ctx.ellipse(c.x + 30 * c.s, c.y - 6 * c.s, 40 * c.s, 10 * c.s, 0, 0, 6.283);
+      ctx.fill();
+    }
+
+    drawHills(C.hillsFar, 0.5, 90, 22, 0.012, 0.031);
+    drawHills(C.hills, 1, 52, 18, 0.02, 0.05);
+  }
+
+  function drawHills(color, par, base, amp, f1, f2) {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(0, FLOOR);
+    for (var x = 0; x <= W; x += 6) {
+      var xx = x + hillX * par;
+      var y = FLOOR - base - amp * Math.sin(xx * f1) - amp * 0.5 * Math.sin(xx * f2 + 1.3);
+      ctx.lineTo(x, y);
+    }
+    ctx.lineTo(W, FLOOR);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function rockPath(pts) {
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    for (var i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+    ctx.closePath();
+  }
+
+  function drawRocks(p) {
+    var x = p.x, bY = p.top + GAP;
+    var top = [[x, -4], [x + PW, -4], [x + PW * 0.6, p.top], [x + PW * 0.4, p.top]];
+    var bot = [[x + PW * 0.4, bY], [x + PW * 0.6, bY], [x + PW, FLOOR + 4], [x, FLOOR + 4]];
+
+    [top, bot].forEach(function (pts, idx) {
+      rockPath(pts);
+      ctx.fillStyle = C.rock;
+      ctx.fill();
+      ctx.save();
+      rockPath(pts);
+      ctx.clip();
+      ctx.fillStyle = C.rockShade;
+      ctx.fillRect(x + PW * 0.52, idx === 0 ? -4 : bY, PW, idx === 0 ? p.top + 4 : FLOOR - bY + 4);
+      ctx.strokeStyle = C.rockStrata;
+      ctx.lineWidth = 1.5;
+      var h = idx === 0 ? p.top : FLOOR - bY;
+      for (var k = 1; k <= 4; k++) {
+        var yy = (idx === 0 ? p.top : bY) + (idx === 0 ? -1 : 1) * h * (k / 5) * 0.9;
+        ctx.beginPath(); ctx.moveTo(x, yy); ctx.lineTo(x + PW, yy + 4); ctx.stroke();
+      }
+      ctx.restore();
+      rockPath(pts);
+      ctx.strokeStyle = C.rockEdge;
+      ctx.lineWidth = 1.6;
+      ctx.stroke();
+    });
+  }
+
+  function drawBird() {
+    ctx.save();
+    ctx.translate(BIRD_X, bird.y);
+    ctx.rotate(bird.rot);
+    var f = state === 'over' ? 0.4 : Math.sin(t * 22);
+
+    function wing(fill, ox, oy, k) {
+      ctx.beginPath();
+      ctx.moveTo(-2 + ox, -2 + oy);
+      ctx.lineTo(-32 + ox, -16 + oy + f * 15 * k);
+      ctx.quadraticCurveTo(-30 + ox, -4 + oy + f * 10 * k, -24 + ox, -2 + oy + f * 8 * k);
+      ctx.quadraticCurveTo(-24 + ox, 6 + oy + f * 5 * k, -16 + ox, 6 + oy + f * 4 * k);
+      ctx.quadraticCurveTo(-14 + ox, 11 + oy + f * 2 * k, -4 + ox, 8 + oy);
+      ctx.closePath();
+      ctx.fillStyle = fill;
+      ctx.fill();
+    }
+    wing(C.wingFar, 4, -5, 0.7);
+
+    ctx.shadowColor = C.glow;
+    ctx.shadowBlur = 12;
+    ctx.fillStyle = C.body;
+    ctx.beginPath(); ctx.ellipse(0, 0, 14, 12, 0, 0, 6.283); ctx.fill();
+    ctx.shadowBlur = 0;
+
+    ctx.beginPath();
+    ctx.moveTo(-1, -9); ctx.lineTo(1, -21); ctx.lineTo(7, -10);
+    ctx.moveTo(6, -10); ctx.lineTo(11, -20); ctx.lineTo(13, -7);
+    ctx.fillStyle = C.body; ctx.fill();
+
+    wing(C.wing, 0, 0, 1);
+    ctx.strokeStyle = C.wingEdge; ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(-2, -2); ctx.lineTo(-32, -16 + f * 15);
+    ctx.stroke();
+
+    ctx.shadowColor = C.eye; ctx.shadowBlur = 8;
+    ctx.fillStyle = C.eye;
+    ctx.beginPath(); ctx.ellipse(8, -3, 3.2, 2.4, 0.2, 0, 6.283); ctx.fill();
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.moveTo(8, 6); ctx.lineTo(10, 11); ctx.lineTo(12, 6); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(3, 7); ctx.lineTo(4.5, 11); ctx.lineTo(6.5, 7); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+
+  function drawGround() {
+    ctx.fillStyle = C.groundDirt;
+    ctx.fillRect(0, FLOOR, W, GROUND);
+    ctx.fillStyle = C.groundTop;
+    ctx.fillRect(0, FLOOR, W, 8);
+    ctx.fillStyle = C.groundStripe;
+    for (var x = -24 + (-groundX); x < W + 24; x += 24) {
+      ctx.beginPath();
+      ctx.moveTo(x, FLOOR + 8); ctx.lineTo(x + 12, FLOOR + 8); ctx.lineTo(x + 2, FLOOR + 22); ctx.lineTo(x - 10, FLOOR + 22);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.fillStyle = 'rgba(150,135,255,0.55)';
+    ctx.fillRect(0, FLOOR, W, 1.5);
+  }
+
+  function text(str, x, y, size, align) {
+    ctx.font = '400 ' + size + 'px "Anton", "Trebuchet MS", sans-serif';
+    ctx.textAlign = align || 'center';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = Math.max(4, size / 6);
+    ctx.strokeStyle = C.textStroke;
+    ctx.fillStyle = C.text;
+    ctx.fillText(str, x, y);
+  }
+
+  function drawMedal(cx, cy, s) {
+    var col = s >= 30 ? '#f0c54a' : s >= 20 ? '#cfd8dc' : s >= 10 ? '#c98a4b' : '#3a3560';
+    ctx.fillStyle = col; ctx.beginPath(); ctx.arc(cx, cy, 24, 0, 6.283); ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.lineWidth = 3; ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.beginPath(); ctx.arc(cx - 7, cy - 8, 6, 0, 6.283); ctx.fill();
+  }
+
+  function draw() {
+    drawSky();
+    for (var j = 0; j < pipes.length; j++) drawRocks(pipes[j]);
+    drawGround();
+    drawBird();
+
+    if (state === 'play') text(String(score), W / 2, 90, 54);
+
+    if (state === 'ready') {
+      text('Prêt ?', W / 2, 150, 46);
+      text('Touche pour voler', W / 2, 400, 24);
+      if (best > 0) text('Record : ' + best, W / 2, 440, 20);
+    }
+
+    if (state === 'over') {
+      var px = 40, py = 170, pw = W - 80, ph = 210;
+      text('Perdu !', W / 2, 140, 44);
+      ctx.fillStyle = '#17142b';
+      ctx.strokeStyle = '#7a6cff'; ctx.lineWidth = 3;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(px, py, pw, ph, 12); else ctx.rect(px, py, pw, ph);
+      ctx.fill(); ctx.stroke();
+      drawMedal(px + 56, py + 110, score);
+      ctx.fillStyle = '#9a93c9';
+      ctx.font = '400 15px "Anton", sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText('SCORE', px + pw - 24, py + 44);
+      ctx.fillText('RECORD', px + pw - 24, py + 128);
+      ctx.fillStyle = '#f1f3ff';
+      ctx.font = '400 38px "Anton", sans-serif';
+      ctx.fillText(String(score), px + pw - 24, py + 84);
+      ctx.fillText(String(best), px + pw - 24, py + 168);
+      if (newBest) {
+        ctx.fillStyle = '#b7f4ff';
+        ctx.font = '400 14px "Anton", sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText('NOUVEAU RECORD', px + 20, py + 28);
+      }
+      if (performance.now() - diedAt > 600) text('Touche pour rejouer', W / 2, 440, 22);
+    }
+  }
+
+  var aboutEl = document.getElementById('about');
+  var aboutBtn = document.getElementById('aboutBtn');
+  var aboutClose = document.getElementById('aboutClose');
+  function openAbout() { paused = true; aboutEl.hidden = false; aboutClose.focus(); }
+  function closeAbout() { paused = false; aboutEl.hidden = true; canvas.focus({ preventScroll: true }); }
+  aboutBtn.addEventListener('click', openAbout);
+  aboutClose.addEventListener('click', closeAbout);
+
+  try { document.fonts.load('400 20px Anton'); } catch (e) {}
+
+  var lastT = 0;
+  function frame(ts) {
+    var dt = Math.min(0.033, (ts - lastT) / 1000 || 0);
+    lastT = ts;
+    update(dt);
+    draw();
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  canvas.addEventListener('pointerdown', function (e) { e.preventDefault(); flap(); });
+  window.addEventListener('keydown', function (e) {
+    if (paused) { if (e.code === 'Escape') closeAbout(); return; }
+    if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
+      e.preventDefault();
+      if (!e.repeat) flap();
+    }
+  });
+})();
+</script>
+</body>
+</html>
