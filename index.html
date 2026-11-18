@@ -134,6 +134,7 @@
 <header>
   <h1>NDEKE FLY</h1>
   <button class="btn" id="aboutBtn" type="button">À propos</button>
+  <button class="btn" id="soundBtn" type="button" aria-pressed="true">Son activé</button>
   <p class="hint">Touche l'écran, clique ou appuie sur <kbd>Espace</kbd></p>
 </header>
 <div class="stage">
@@ -171,6 +172,44 @@
 
   var state = 'ready';
   var paused = false;
+
+  var audioCtx = null, soundOn = true;
+  try { soundOn = localStorage.getItem('piaf-sound') !== 'off'; } catch (e) {}
+  function ac() {
+    if (!audioCtx) {
+      try { var AC = window.AudioContext || window.webkitAudioContext; audioCtx = new AC(); } catch (e) {}
+    }
+    if (audioCtx && audioCtx.state === 'suspended') { try { audioCtx.resume(); } catch (e) {} }
+    return audioCtx;
+  }
+  function tone(freq, endFreq, dur, type, vol, delay) {
+    if (!soundOn) return;
+    var a = ac(); if (!a) return;
+    var t0 = a.currentTime + (delay || 0);
+    var o = a.createOscillator(), g = a.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(freq, t0);
+    if (endFreq && endFreq !== freq) o.frequency.exponentialRampToValueAtTime(endFreq, t0 + dur);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(vol, t0 + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g); g.connect(a.destination);
+    o.start(t0); o.stop(t0 + dur + 0.03);
+  }
+  function noise(dur, vol, delay, cutoff) {
+    if (!soundOn) return;
+    var a = ac(); if (!a) return;
+    var n = Math.floor(a.sampleRate * dur), buf = a.createBuffer(1, n, a.sampleRate), d = buf.getChannelData(0);
+    for (var i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+    var src = a.createBufferSource(); src.buffer = buf;
+    var f = a.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = cutoff || 1200;
+    var g = a.createGain(); g.gain.value = vol;
+    src.connect(f); f.connect(g); g.connect(a.destination);
+    src.start(a.currentTime + (delay || 0));
+  }
+  function sfxFlap() { tone(360, 640, 0.09, 'triangle', 0.16); noise(0.08, 0.12, 0, 2200); }
+  function sfxScore() { tone(880, 880, 0.08, 'sine', 0.18); tone(1318, 1318, 0.16, 'sine', 0.18, 0.08); }
+  function sfxHit() { noise(0.2, 0.35, 0, 900); tone(220, 55, 0.35, 'sawtooth', 0.22); tone(520, 120, 0.5, 'triangle', 0.1, 0.12); }
   var bird, pipes, clouds, stars, score, best = 0;
   var groundX = 0, hillX = 0, t = 0, diedAt = 0, newBest = false;
 
@@ -197,6 +236,7 @@
   }
 
   function flap() {
+    if (state === 'ready' || state === 'play') sfxFlap();
     if (state === 'ready') {
       state = 'play';
       spawnPipe(W + 60);
@@ -213,6 +253,7 @@
     if (state !== 'play') return;
     state = 'over';
     diedAt = performance.now();
+    sfxHit();
     if (score > best) {
       best = score;
       newBest = true;
@@ -259,7 +300,7 @@
     for (var j = 0; j < pipes.length; j++) {
       var p = pipes[j];
       p.x -= SPEED * dt;
-      if (!p.scored && p.x + PW < BIRD_X - BIRD_R) { p.scored = true; score++; }
+      if (!p.scored && p.x + PW < BIRD_X - BIRD_R) { p.scored = true; score++; sfxScore(); }
       var dx = Math.abs(BIRD_X - (p.x + PW / 2));
       if (dx < PW / 2 + BIRD_R) {
         var yc = Math.min(Math.max(bird.y, 0), p.top);
@@ -485,6 +526,20 @@
   function closeAbout() { paused = false; aboutEl.hidden = true; canvas.focus({ preventScroll: true }); }
   aboutBtn.addEventListener('click', openAbout);
   aboutClose.addEventListener('click', closeAbout);
+
+  var soundBtn = document.getElementById('soundBtn');
+  function renderSound() {
+    soundBtn.textContent = soundOn ? 'Son activé' : 'Son coupé';
+    soundBtn.setAttribute('aria-pressed', String(soundOn));
+  }
+  renderSound();
+  soundBtn.addEventListener('click', function () {
+    soundOn = !soundOn;
+    try { localStorage.setItem('piaf-sound', soundOn ? 'on' : 'off'); } catch (e) {}
+    renderSound();
+    if (soundOn) tone(660, 660, 0.09, 'sine', 0.15);
+    canvas.focus({ preventScroll: true });
+  });
 
   try { document.fonts.load('400 20px Anton'); } catch (e) {}
 
